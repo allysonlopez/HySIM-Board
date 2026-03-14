@@ -3,18 +3,7 @@ title: "Discrete Event Simulation - MIMIC"
 output: html_notebook
 ---
 
+The Medical Information Mart for Intensive Care (MIMIC) dataset is a publicly available hospital database containing de-identified patient records to the emergency department at an academic tertiary medical center. The dataset includes detailed information about clinical events, procedures, vitals, and time-stamped interactions. 
 
-This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
-
-Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Cmd+Shift+Enter*. 
-
-```{r}
-plot(cars)
-```
-
-Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Cmd+Option+I*.
-
-When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Cmd+Shift+K* to preview the HTML file). 
-
-The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
+Because access to real hospital operational data will occur later in the project timeline, the MIMIC dataset will be used as a starting point for the exploratory analysis and the development of the discrete event simulation. The MIMIC data does not represent ED boarding behavior, but it contains similar and comparable clinical variables that will allow for test modeling methods and evaluate predictive features. 
 
