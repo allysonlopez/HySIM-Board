@@ -13,7 +13,7 @@ library(lubridate)
 
 ```{r}
 # read data
-edstays <- read_csv("data/edstays.csv.gz")
+edstays <- read_csv("data_mimic/edstays.csv.gz")
 
 # convert times to datetime
 edstays <- edstays %>%
