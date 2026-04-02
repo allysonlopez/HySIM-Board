@@ -1,9 +1,122 @@
 ---
-title: "Discrete Event Simulation - MIMIC"
+title: "R Notebook"
 output: html_notebook
 ---
 
-The Medical Information Mart for Intensive Care (MIMIC) dataset is a publicly available hospital database containing de-identified patient records to the emergency department at an academic tertiary medical center. The dataset includes detailed information about clinical events, procedures, vitals, and time-stamped interactions. 
+```{r}
+library(tidyverse)
+library(lubridate)
+```
 
-Because access to real hospital operational data will occur later in the project timeline, the MIMIC dataset will be used as a starting point for the exploratory analysis and the development of the discrete event simulation. The MIMIC data does not represent ED boarding behavior, but it contains similar and comparable clinical variables that will allow for test modeling methods and evaluate predictive features. 
+
+#LOS only for admitted patients
+
+```{r}
+# read data
+edstays <- read_csv("data/edstays.csv.gz")
+
+# convert times to datetime
+edstays <- edstays %>%
+  mutate(
+    intime = ymd_hms(intime),
+    outtime = ymd_hms(outtime)
+  )
+
+# calculate LOS in hours
+edstays <- edstays %>%
+  mutate(
+    los_hours = as.numeric(difftime(outtime, intime, units = "hours"))
+  )
+
+# remove impossible stays
+edstays_clean <- edstays %>%
+  filter(!is.na(intime), !is.na(outtime), los_hours >= 0)
+
+# quick summary of LOS
+summary(edstays_clean$los_hours)
+
+admitted_edstays <- edstays_clean %>%
+  filter(disposition == "ADMITTED")
+
+summary(admitted_edstays$los_hours)
+```
+
+
+#Midnight census
+
+```{r}
+# create sequence of midnights across the data range
+midnight_times <- seq(
+  from = floor_date(min(edstays_clean$intime), unit = "day"),
+  to   = floor_date(max(edstays_clean$outtime), unit = "day"),
+  by   = "1 day"
+)
+
+# compute midnight census
+midnight_census <- tibble(midnight = midnight_times) %>%
+  rowwise() %>%
+  mutate(
+    census = sum(edstays_clean$intime <= midnight & edstays_clean$outtime > midnight)
+  ) %>%
+  ungroup()
+
+# view first few rows
+head(midnight_census)
+```
+
+
+```{r}
+ggplot(midnight_census, aes(x = midnight, y = census)) +
+  geom_line() +
+  labs(
+    title = "Midnight Census Over Time",
+    x = "Date",
+    y = "Number of Patients in ED at Midnight"
+  ) +
+  theme_minimal()
+```
+
+#Daily ED bed-hours proxy
+
+```{r}
+daily_bed_hours <- edstays_clean %>%
+  mutate(arrival_date = as.Date(intime)) %>%
+  group_by(arrival_date) %>%
+  summarise(
+    total_ed_bed_hours = sum(los_hours, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+head(daily_bed_hours)
+```
+#Admitted-only proxy bed-hours
+
+```{r}
+daily_proxy_boarding_hours <- admitted_edstays %>%
+  mutate(arrival_date = as.Date(intime)) %>%
+  group_by(arrival_date) %>%
+  summarise(
+    proxy_boarding_hours = sum(los_hours, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+head(daily_proxy_boarding_hours)
+```
+
+
+```{r}
+# how many admitted vs not admitted
+table(edstays_clean$disposition)
+
+# LOS by disposition
+edstays_clean %>%
+  group_by(disposition) %>%
+  summarise(
+    mean_los = mean(los_hours, na.rm = TRUE),
+    median_los = median(los_hours, na.rm = TRUE),
+    n = n(),
+    .groups = "drop"
+  ) %>%
+  arrange(desc(mean_los))
+```
 
