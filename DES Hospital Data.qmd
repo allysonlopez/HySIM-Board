@@ -9,4 +9,4 @@ editor: visual
 
 MVP simulation of when patients arrive, who they are, how long it takes to get first provider contact, a first-pass generic workup duration, and imaging use and timing.
 
-De-identified data
+De-identified data=====
