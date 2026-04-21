@@ -1,0 +1,506 @@
+---
+title: "01_data-cleaning"
+format: pdf
+---
+
+```{r}
+# loading libraries
+
+library(tidyverse)
+```
+
+
+```{r}
+# loading datasets
+
+interarrival <- read_csv("data/01_interarrival_by_timeblock_hourly_cy2025.csv")
+case_mix <- read_csv("data/02_case_mix_by_timeblock_cy2025.csv")
+first_seen_summary <- read_csv("data/03_arrival_to_first_seen_distribution_by_triage_cy2025.csv")
+first_seen_empirical <- read_csv("data/04_arrival_to_first_seen_empirical_deid_cy2025.csv")
+workup_summary <- read_csv("data/05_generic_workup_duration_distribution_by_complexity_cy2025.csv")
+workup_empirical <- read_csv("data/06_generic_workup_duration_empirical_deid_cy2025.csv")
+imaging_prob <- read_csv("data/07_imaging_probability_and_modality_mix_by_complexity_acuity_cy2025.csv")
+imaging_duration <- read_csv("data/08_imaging_duration_distribution_by_modality_cy2025.csv")
+```
+
+### EDA
+```{r}
+glimpse(interarrival)
+glimpse(case_mix)
+glimpse(first_seen_summary)
+glimpse(first_seen_empirical)
+glimpse(workup_summary)
+glimpse(workup_empirical)
+glimpse(imaging_prob)
+glimpse(imaging_duration)
+```
+
+```{r}
+head(interarrival)
+head(case_mix)
+head(first_seen_summary)
+head(first_seen_empirical)
+head(workup_summary)
+head(workup_empirical)
+head(imaging_prob)
+head(imaging_duration)
+```
+```{r}
+check_missing <- function(df, name) {
+  cat("\n========================\n")
+  cat("Missing values in:", name, "\n")
+  print(colSums(is.na(df)))
+}
+
+check_missing(interarrival, "interarrival")
+check_missing(case_mix, "case_mix")
+check_missing(first_seen_summary, "first_seen_summary")
+check_missing(first_seen_empirical, "first_seen_empirical")
+check_missing(workup_summary, "workup_summary")
+check_missing(workup_empirical, "workup_empirical")
+check_missing(imaging_prob, "imaging_prob")
+check_missing(imaging_duration, "imaging_duration")
+```
+1. Interarrival: This file controls when patients arrive into the simulation. The README says to use it to drive entity generation.
+```{r}
+# Interarrival EDA
+
+# How many rows / unique hours / day types?
+nrow(interarrival)
+unique(interarrival$day_of_week_label)
+sort(unique(interarrival$hour_of_day))
+
+# Average arrival rate by hour of day
+arrival_by_hour <- interarrival %>%
+  group_by(hour_of_day) %>%
+  summarise(
+    mean_arrival_rate = mean(arrival_rate_per_hour, na.rm = TRUE),
+    mean_interarrival = mean(mean_interarrival_min, na.rm = TRUE)
+  )
+
+print(arrival_by_hour)
+
+# Plot: arrival rate by hour
+ggplot(arrival_by_hour, aes(x = hour_of_day, y = mean_arrival_rate)) +
+  geom_line() +
+  geom_point() +
+  labs(
+    title = "Average Arrival Rate by Hour of Day",
+    x = "Hour of Day",
+    y = "Average Arrival Rate per Hour"
+  )
+
+# Plot: mean interarrival time by hour
+ggplot(arrival_by_hour, aes(x = hour_of_day, y = mean_interarrival)) +
+  geom_line() +
+  geom_point() +
+  labs(
+    title = "Average Mean Interarrival Time by Hour of Day",
+    x = "Hour of Day",
+    y = "Mean Interarrival Time (minutes)"
+  )
+
+# By day of week and hour
+arrival_heatmap <- interarrival %>%
+  group_by(day_of_week_label, hour_of_day) %>%
+  summarise(mean_rate = mean(arrival_rate_per_hour, na.rm = TRUE), .groups = "drop")
+
+ggplot(arrival_heatmap, aes(x = hour_of_day, y = day_of_week_label, fill = mean_rate)) +
+  geom_tile() +
+  labs(
+    title = "Arrival Rate Heatmap by Day of Week and Hour",
+    x = "Hour of Day",
+    y = "Day of Week",
+    fill = "Arrival Rate"
+  )
+
+```
+2. Case Mix: This file tells you what kind of patient arrives.
+```{r}
+# Case mix EDA
+
+# How many values for each attribute?
+case_mix %>%
+  group_by(attribute_name) %>%
+  summarise(n_values = n_distinct(attribute_value))
+
+# Example: look at probabilities for each attribute
+case_mix %>%
+  group_by(attribute_name, attribute_value) %>%
+  summarise(avg_prob = mean(probability, na.rm = TRUE), .groups = "drop") %>%
+  arrange(attribute_name, desc(avg_prob))
+
+
+
+```
+
+3. Arrival to First Seen (summary): This file represents the front-end delay from arrival until first provider contact.
+```{r}
+# Arrival to first seen
+
+# Look at delays by triage priority
+print(first_seen_summary)
+
+# Bar plot of median first-seen time by triage priority
+ggplot(first_seen_summary, aes(x = factor(triage_priority), y = median_min)) +
+  geom_col() +
+  labs(
+    title = "Median Arrival-to-First-Seen Time by Triage Priority",
+    x = "Triage Priority",
+    y = "Median Minutes"
+  )
+
+# p90 comparison
+ggplot(first_seen_summary, aes(x = factor(triage_priority), y = p90_min)) +
+  geom_col() +
+  labs(
+    title = "90th Percentile Arrival-to-First-Seen Time by Triage Priority",
+    x = "Triage Priority",
+    y = "P90 Minutes"
+  )
+```
+4. Arrival to First Seen (empirical): This file has de-identified encounter-level durations rather than just summary statistics.
+```{r}
+# Empirical first seen
+
+
+# Histogram
+ggplot(first_seen_empirical, aes(x = duration_min)) +
+  geom_histogram(bins = 40) +
+  labs(
+    title = "Distribution of Arrival-to-First-Seen Durations",
+    x = "Minutes",
+    y = "Count"
+  )
+
+# By triage priority
+ggplot(first_seen_empirical, aes(x = factor(triage_priority), y = duration_min)) +
+  geom_boxplot() +
+  labs(
+    title = "Arrival-to-First-Seen Duration by Triage Priority",
+    x = "Triage Priority",
+    y = "Minutes"
+  )
+```
+
+5. Generic Workup Summary: This is the big middle chunk of the ED visit
+```{r}
+# Workup summary
+
+
+# Median workup time by complexity
+ggplot(workup_summary, aes(x = complexity_bucket, y = median_min)) +
+  geom_col() +
+  labs(
+    title = "Median Generic Workup Duration by Complexity",
+    x = "Complexity Bucket",
+    y = "Median Minutes"
+  )
+
+# p90 workup time by complexity
+ggplot(workup_summary, aes(x = complexity_bucket, y = p90_min)) +
+  geom_col() +
+  labs(
+    title = "90th Percentile Generic Workup Duration by Complexity",
+    x = "Complexity Bucket",
+    y = "P90 Minutes"
+  )
+```
+6. Generic Workup Empirical
+```{r}
+# Empirical workup EDA
+
+ggplot(workup_empirical, aes(x = duration_min)) +
+  geom_histogram(bins = 40) +
+  labs(
+    title = "Distribution of Generic Workup Duration",
+    x = "Minutes",
+    y = "Count"
+  )
+
+ggplot(workup_empirical, aes(x = complexity_bucket, y = duration_min)) +
+  geom_boxplot() +
+  labs(
+    title = "Generic Workup Duration by Complexity",
+    x = "Complexity Bucket",
+    y = "Minutes"
+  )
+```
+
+7. Imaging Probability and Modality Mix: This file tells you whether imaging happens and, if so, what modality is used. (looks like theres nothing useful in this file?)
+```{r}
+
+# Imaging probability
+
+# Average imaging probability by complexity
+imaging_by_complexity <- imaging_prob %>%
+  group_by(complexity_bucket) %>%
+  summarise(avg_imaging_prob = mean(needs_imaging_prob, na.rm = TRUE), .groups = "drop")
+
+ggplot(imaging_by_complexity, aes(x = complexity_bucket, y = avg_imaging_prob)) +
+  geom_col() +
+  labs(
+    title = "Average Imaging Probability by Complexity",
+    x = "Complexity Bucket",
+    y = "Probability of Imaging"
+  )
+
+# Average imaging probability by triage
+imaging_by_triage <- imaging_prob %>%
+  group_by(triage_priority) %>%
+  summarise(avg_imaging_prob = mean(needs_imaging_prob, na.rm = TRUE), .groups = "drop")
+
+ggplot(imaging_by_triage, aes(x = factor(triage_priority), y = avg_imaging_prob)) +
+  geom_col() +
+  labs(
+    title = "Average Imaging Probability by Triage Priority",
+    x = "Triage Priority",
+    y = "Probability of Imaging"
+  )
+
+# Reshape modality probabilities for plotting
+modality_plot <- imaging_prob %>%
+  select(complexity_bucket, triage_priority, xr_prob, ct_prob, mri_prob, us_prob) %>%
+  pivot_longer(cols = c(xr_prob, ct_prob, mri_prob, us_prob),
+               names_to = "modality",
+               values_to = "probability")
+
+ggplot(modality_plot, aes(x = modality, y = probability)) +
+  geom_boxplot() +
+  labs(
+    title = "Distribution of Imaging Modality Probabilities",
+    x = "Modality",
+    y = "Probability"
+  )
+```
+8. Imaging Duration File: This file gives timing by modality, including acquisition, interpretation, and total imaging time.
+```{r}
+
+# Imaging duration 
+
+# Total imaging median by modality
+ggplot(imaging_duration, aes(x = imaging_type, y = total_imaging_median_min)) +
+  geom_col() +
+  labs(
+    title = "Median Total Imaging Time by Modality",
+    x = "Imaging Type",
+    y = "Median Minutes"
+  )
+
+# Total imaging p90 by modality
+ggplot(imaging_duration, aes(x = imaging_type, y = total_imaging_p90_min)) +
+  geom_col() +
+  labs(
+    title = "P90 Total Imaging Time by Modality",
+    x = "Imaging Type",
+    y = "P90 Minutes"
+  )
+```
+
+
+
+### DES Model
+## Sampling Functions
+```{r}
+approx_weibull_from_median_p90 <- function(median_min, p90_min) {
+  stopifnot(is.numeric(median_min), is.numeric(p90_min))
+  stopifnot(length(median_min) == 1, length(p90_min) == 1)
+  stopifnot(median_min > 0, p90_min > median_min)
+
+  k <- log(log(10) / log(2)) / log(p90_min / median_min)
+  lambda <- median_min / (log(2)^(1 / k))
+
+  list(shape = k, scale = lambda)
+}
+
+sample_duration_weibull <- function(median_min, p90_min, n = 1) {
+  pars <- approx_weibull_from_median_p90(median_min, p90_min)
+  rweibull(n, shape = pars$shape, scale = pars$scale)
+}
+```
+
+```{r}
+## How long until next patient arrives
+sample_interarrival <- function(hour, day_label) {
+  row <- interarrival %>%
+    filter(hour_of_day == hour,
+           day_of_week_label == day_label) %>%
+    slice(1)
+
+  if (nrow(row) == 0 || is.na(row$mean_interarrival_min)) {
+    return(10)  # fallback
+  }
+
+  return(rexp(1, rate = 1 / row$mean_interarrival_min))
+}
+```
+
+```{r}
+# Assign who the patient is, acuity, complexity, etc.
+sample_attribute <- function(hour, day_num, attr) {
+  probs <- case_mix %>%
+    filter(hour_of_day == hour,
+           day_of_week_num == day_num,
+           attribute_name == attr)
+
+  if (nrow(probs) == 0) return(NA_real_)
+
+  val <- sample(probs$attribute_value, 1, prob = probs$probability)
+
+  val_num <- suppressWarnings(as.numeric(val))
+
+  if (!is.na(val_num)) return(val_num)
+
+  as.numeric(as.factor(val))
+}
+```
+
+```{r}
+# First seen delay (waiting room time)
+sample_first_seen <- function(triage) {
+  row <- first_seen_summary %>%
+    filter(triage_priority == triage) %>%
+    slice(1)
+
+  if (nrow(row) == 0) return(30)
+
+  sample_duration_weibull(row$median_min, row$p90_min, 1)
+}
+```
+
+```{r}
+# Workup time (main ED time)
+sample_workup <- function(complexity) {
+  row <- workup_summary %>%
+    filter(complexity_bucket == complexity) %>%
+    slice(1)
+
+  if (nrow(row) == 0) return(60)
+
+  sample_duration_weibull(row$median_min, row$p90_min, 1)
+}
+
+```
+
+```{r}
+# Imaging decision (Yes/No for now since missing the imaging probability data)
+sample_imaging <- function(complexity, triage) {
+  row <- imaging_prob %>%
+    filter(complexity_bucket == complexity,
+           triage_priority == triage) %>%
+    slice(1)
+
+  if (nrow(row) == 0) return(FALSE)
+
+  runif(1) < row$needs_imaging_prob
+}
+```
+
+```{r}
+# Imaging time
+sample_imaging_time <- function() {
+  mean(imaging_duration$total_imaging_median_min, na.rm = TRUE)
+}
+```
+
+## TEST: Simulate One Patient
+```{r}
+simulate_patient <- function(hour, day_num, day_label) {
+
+  # attributes
+  triage <- sample_attribute(hour, day_num, "acuity")
+  complexity <- sample_attribute(hour, day_num, "complexity_bucket")
+
+  # steps
+  wait_time <- sample_first_seen(triage)
+  workup_time <- sample_workup(complexity)
+
+  imaging_flag <- sample_imaging(complexity, triage)
+
+  if (imaging_flag) {
+    imaging_time <- sample_imaging_time()
+  } else {
+    imaging_time <- 0
+  }
+
+  total_time <- wait_time + workup_time + imaging_time
+
+  return(data.frame(
+    triage = triage,
+    complexity = complexity,
+    wait_time = wait_time,
+    workup_time = workup_time,
+    imaging = imaging_flag,
+    imaging_time = imaging_time,
+    total_time = total_time
+  ))
+}
+```
+
+```{r}
+set.seed(1)
+simulate_patient(14, 2, "Tuesday")
+```
+## TEST: Simulate Many Patients
+```{r}
+patients <- bind_rows(
+  replicate(1000,
+            simulate_patient(14, 2, "Tuesday"),
+            simplify = FALSE)
+)
+```
+
+```{r}
+summary(patients$total_time)
+
+ggplot(patients, aes(x = total_time)) +
+  geom_histogram(bins = 40) +
+  labs(title = "Simulated ED Length of Stay")
+```
+
+## Actual DES Model
+```{r}
+library(simmer)
+
+env <- simmer("ED")
+
+traj <- trajectory() %>%
+
+  # assign attributes
+  set_attribute("triage", function() sample_attribute(14, 2, "acuity")) %>%
+  set_attribute("complexity", function() sample_attribute(14, 2, "complexity_bucket")) %>%
+
+  # wait to be seen
+  timeout(function() {
+  triage <- get_attribute(env, "triage")
+  sample_first_seen(triage)
+}) %>%
+
+  # workup
+  timeout(function() {
+  complexity <- get_attribute(env, "complexity")
+  sample_workup(complexity)
+}) %>%
+
+  # imaging decision
+  branch(
+  function() {
+    triage <- get_attribute(env, "triage")
+    complexity <- get_attribute(env, "complexity")
+
+    if (sample_imaging(complexity, triage)) 1 else 0
+  },
+  continue = c(TRUE),
+  trajectory() %>%
+    timeout(function() sample_imaging_time())
+)
+```
+
+```{r}
+env %>%
+  add_generator("patient",
+                traj,
+                function() sample_interarrival(14, "Tuesday")) %>%
+  run(until = 100)
+```
+
