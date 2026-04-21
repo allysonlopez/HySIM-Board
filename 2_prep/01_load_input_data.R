@@ -17,14 +17,3 @@ generic_workup_summary <- read_csv_file(file_path = file.path(data_dir, "05_gene
 generic_workup_empirical <- read_csv_file(file_path = file.path(data_dir, "06_generic_workup_duration_empirical_deid_cy2025.csv"))
 imaging_probability <- read_csv_file(file_path = file.path(data_dir, "07_imaging_probability_and_modality_mix_by_complexity_acuity_cy2025.csv"))
 imaging_duration <- read_csv_file(file_path = file.path(data_dir, "08_imaging_duration_distribution_by_modality_cy2025.csv"))
-
-input_data_list <- list(
-  interarrival_by_hourly = interarrival_by_hourly,
-  case_mix = case_mix,
-  arrival_to_first_seen_summary = arrival_to_first_seen_summary,
-  arrival_to_first_seen_empirical = arrival_to_first_seen_empirical,
-  generic_workup_summary = generic_workup_summary,
-  generic_workup_empirical = generic_workup_empirical,
-  imaging_probability = imaging_probability,
-  imaging_duration = imaging_duration
-)
