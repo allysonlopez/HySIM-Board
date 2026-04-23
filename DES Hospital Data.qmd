@@ -27,16 +27,18 @@ imaging_time <- read.csv("1_data/08_imaging_duration_distribution_by_modality_cy
 ```{r}
 mean_interarrival <- interarrival$mean_interarrival_min[1]
 
+
+#instead of always [1], sample values
 sample_first_seen <- function() {
-  first_seen$median_min[1]  # median wait time
+  sample(first_seen$median_min, 1)  # median wait time
 }
 
 sample_workup <- function() {
-  workup$median_min[1]  # median workup time
+  sample(workup$median_min, 1)  # median workup time
 }
 
 sample_imaging <- function() {
-  imaging_time$total_imaging_median_min[1]  # median imaging time
+  sample(imaging_time$total_imaging_median_min, 1)  # median imaging time
 }
 
 ed_path <- trajectory("ED patient") %>%
@@ -55,4 +57,54 @@ arrivals <- get_mon_arrivals(env)
 arrivals
 nrow(arrivals)
 table(arrivals$finished)
+```
+
+```{r}
+ggplot(arrivals, aes(x = activity_time)) +
+  geom_histogram(bins = 25) +
+  labs(
+    title = "Simulated Length of Stay (LOS)",
+    x = "Minutes in System",
+    y = "Number of Patients"
+  )
+```
+
+```{r}
+ggplot(arrivals, aes(x = activity_time)) +
+  geom_density(fill = "blue", alpha = 0.4) +
+  labs(
+    title = "Density of Simulated LOS",
+    x = "Minutes",
+    y = "Density"
+  )
+```
+
+```{r}
+ggplot(arrivals, aes(x = start_time, y = end_time)) +
+  geom_point(alpha = 0.5) +
+  labs(
+    title = "Patient Flow Through System",
+    x = "Arrival Time",
+    y = "Departure Time"
+  )
+```
+
+```{r}
+ggplot(arrivals, aes(x = start_time, y = activity_time)) +
+  geom_point(alpha = 0.5) +
+  labs(
+    title = "LOS vs Arrival Time",
+    x = "Arrival Time",
+    y = "LOS (Minutes)"
+  )
+```
+
+```{r}
+ggplot(arrivals, aes(x = finished)) +
+  geom_bar() +
+  labs(
+    title = "Completed vs Incomplete Patients",
+    x = "Finished",
+    y = "Count"
+  )
 ```
