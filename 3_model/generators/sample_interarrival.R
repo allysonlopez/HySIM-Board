@@ -1,3 +1,5 @@
+# file decides how many minutes until the next patient arrives?
+
 source("3_model/generators/helper_functions.R")
 
 sample_interarrival <- function(data, current_time, current_quarter) {

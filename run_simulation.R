@@ -7,6 +7,8 @@ source("3_model/generators/sample_interarrival.R")
 source("3_model/register_resources.R")
 source("3_model/distributions/sample_first_seen_delay.R")
 source("3_model/distributions/sample_workup_duration.R")
+source("3_model/distributions/sample_imaging_decision.R")
+source("3_model/distributions/sample_imaging_duration.R")
 source("3_model/build_patient_trajectory.R")
 
 source("4_analysis/analysis_result.R")
@@ -20,6 +22,8 @@ patient_trajectory <- build_patient_trajectory(
   case_mix_data = case_mix_data,
   first_seen_data = first_seen_summary_data,
   workup_data = workup_summary_data,
+  imaging_probability_data = imaging_probability_data,
+  imaging_duration_data = imaging_duration_data,
   current_quarter = current_quarter,
   env = env
 )

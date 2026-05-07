@@ -1,3 +1,5 @@
+# file assigns each pateint characteristics, like acuity, complexity bucket, arrival mode, age group, behavioral health flag
+
 source("3_model/generators/helper_functions.R")
 
 sample_one_attributes <- function(case_mix_data, attr_name, time_rows) {
@@ -8,7 +10,7 @@ sample_one_attributes <- function(case_mix_data, attr_name, time_rows) {
     matching_attribute_rows <- case_mix_data[
       case_mix_data$attribute_name == attr_name,
     ]
-    warning("No matching rows. Using the whole datasets") 
+    warning("No matching rows. Using the whole dataset") 
   }
   
   sample(
@@ -17,7 +19,6 @@ sample_one_attributes <- function(case_mix_data, attr_name, time_rows) {
     replace = TRUE,
     prob = matching_attribute_rows$probability
   )
-  
 }
 
 assign_patient_attributes <- function(data, current_time, current_quarter) {
@@ -25,25 +26,25 @@ assign_patient_attributes <- function(data, current_time, current_quarter) {
   time_rows <- sample_time_rows(data, current_time, current_quarter)
   
   c(
-    acuity = encode_acuity(sample_one_attributes(data, 
-                                              "acuity", 
-                                              time_rows)),
+    acuity = encode_acuity(
+      sample_one_attributes(data, "acuity", time_rows)
+    ),
     
-    complexity_bucket = encode_complexity_bucket(sample_one_attributes(data, 
-                                                                       "complexity_bucket", 
-                                                                       time_rows)),
+    complexity_bucket = encode_complexity_bucket(
+      sample_one_attributes(data, "complexity_bucket", time_rows)
+    ),
     
-    arrival_mode = encode_arrival_mode(sample_one_attributes(data, 
-                                                             "arrival_mode", 
-                                                             time_rows)),
+    arrival_mode = encode_arrival_mode(
+      sample_one_attributes(data, "arrival_mode", time_rows)
+    ),
     
-    age_group = encode_age_group(sample_one_attributes(data, 
-                                                       "age_group", 
-                                                       time_rows)),
+    age_group = encode_age_group(
+      sample_one_attributes(data, "age_group", time_rows)
+    ),
     
-    behavioral_health_flag = as.numeric(sample_one_attributes(data, 
-                                                              "behavioral_health_flag", 
-                                                              time_rows))
+    behavioral_health_flag = as.numeric(
+      sample_one_attributes(data, "behavioral_health_flag", time_rows)
+    )
   )
 }
 
@@ -53,7 +54,7 @@ encode_acuity <- function(acuity) {
   if (acuity == "3") return(3)
   if (acuity == "4") return(4)
   if (acuity == "5") return(5)
-  return(0)  # UNKNOWN
+  return(0)
 }
 
 encode_complexity_bucket <- function(complexity_bucket) {
@@ -82,5 +83,3 @@ encode_age_group <- function(age_group) {
   if (age_group == "85+") return(4)
   return(0)
 }
-
-

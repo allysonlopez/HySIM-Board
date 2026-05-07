@@ -1,7 +1,16 @@
-build_patient_trajectory <- function(case_mix_data, 
-                                     first_seen_data, 
+# main patient journey
+source("3_model/generators/sample_attributes.R")
+source("3_model/distributions/sample_first_seen_delay.R")
+source("3_model/distributions/sample_workup_duration.R")
+source("3_model/distributions/sample_imaging_decision.R")
+source("3_model/distributions/sample_imaging_duration.R")
+
+build_patient_trajectory <- function(case_mix_data,
+                                     first_seen_data,
                                      workup_data,
-                                     current_quarter, 
+                                     imaging_probability_data,
+                                     imaging_duration_data,
+                                     current_quarter,
                                      env) {
   trajectory("patient_path") %>%
     set_attribute(
@@ -42,5 +51,22 @@ build_patient_trajectory <- function(case_mix_data,
         patient_complexity_bucket = patient_complexity_bucket
       )
     }) %>%
+    
+    timeout(function() {
+      
+      patient_acuity <- get_attribute(env, "acuity")
+      
+      modality <- sample_imaging_decision(
+        imaging_probability_data = imaging_probability_data,
+        patient_acuity = patient_acuity
+      )
+      
+      sample_imaging_duration(
+        imaging_duration_data = imaging_duration_data,
+        modality = modality
+      )
+      
+    }) %>%
+    
     release("ed_bed", 1)
 }

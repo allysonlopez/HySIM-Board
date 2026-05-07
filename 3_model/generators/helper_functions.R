@@ -1,5 +1,6 @@
 # data use from interarrival and case-mix; need to have day_of_week_num and hour_of_day
 
+# file helps the model figure out what time it is in the simulation (supports both sample_interarrival() and assign_patient_attributes())
 sample_time_rows <- function (data, current_sim_time_min, current_quarter) {
   
   current_day_of_week <- floor(current_sim_time_min / 1440) %% 7 + 1

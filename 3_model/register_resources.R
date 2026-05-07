@@ -1,3 +1,5 @@
+# tells the simulation what resources are limited
+
 register_resources <- function(env) {
   
   n_ed_beds <- 17
