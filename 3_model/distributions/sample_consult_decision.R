@@ -27,11 +27,17 @@ sample_consult_decision <- function(consult_probability_data, patient_acuity) {
     return("consult_unknown")
   }
   
+  group_probs <- as.numeric(matching_row[1, group_columns])
+  
+  if (sum(group_probs, na.rm = TRUE) <= 0) {
+    return("consult_unknown")
+  }
+  
   consult_group <- sample(
     x = group_columns,
     size = 1,
     replace = TRUE,
-    prob = as.numeric(matching_row[1, group_columns])
+    prob = group_probs
   )
   
   consult_group <- gsub("_prob$", "", consult_group)

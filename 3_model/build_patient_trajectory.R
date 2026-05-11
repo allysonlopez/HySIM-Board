@@ -6,7 +6,6 @@ source("3_model/distributions/sample_workup_duration.R")
 source("3_model/distributions/sample_imaging_decision.R")
 source("3_model/distributions/sample_imaging_duration.R")
 source("3_model/distributions/sample_consult_decision.R")
-source("3_model/distributions/sample_consult_los_adjustment.R")
 
 build_patient_trajectory <- function(case_mix_data,
                                      first_seen_data,
@@ -14,12 +13,12 @@ build_patient_trajectory <- function(case_mix_data,
                                      imaging_probability_data,
                                      imaging_duration_data,
                                      consult_probability_data,
-                                     consult_los_data,
                                      current_quarter,
                                      env) {
   
   trajectory("patient_path") %>%
     
+    # 1. Assign patient characteristics
     set_attribute(
       keys = c(
         "acuity",
@@ -37,6 +36,7 @@ build_patient_trajectory <- function(case_mix_data,
       }
     ) %>%
     
+    # 2. Front-end / triage nurse constraint
     seize("triage_rn", 1) %>%
     
     timeout(function() {
@@ -50,8 +50,10 @@ build_patient_trajectory <- function(case_mix_data,
     
     release("triage_rn", 1) %>%
     
+    # 3. Main ED treatment space constraint
     seize("core_ed_space", 1) %>%
     
+    # 4. Generic workup duration
     timeout(function() {
       patient_complexity_bucket <- get_attribute(env, "complexity_bucket")
       
@@ -61,6 +63,7 @@ build_patient_trajectory <- function(case_mix_data,
       )
     }) %>%
     
+    # 5. Imaging decision + imaging duration
     timeout(function() {
       patient_acuity <- get_attribute(env, "acuity")
       
@@ -69,14 +72,14 @@ build_patient_trajectory <- function(case_mix_data,
         patient_acuity = patient_acuity
       )
       
-      set_attribute(env, "imaging_modality", modality)
-      
       sample_imaging_duration(
         imaging_duration_data = imaging_duration_data,
         modality = modality
       )
     }) %>%
     
+    # 6. Consult decision only
+    # No consult LOS adjustment because we are not using file 10.
     timeout(function() {
       patient_acuity <- get_attribute(env, "acuity")
       
@@ -85,14 +88,10 @@ build_patient_trajectory <- function(case_mix_data,
         patient_acuity = patient_acuity
       )
       
-      set_attribute(env, "consult_group", consult_group)
-      
-      sample_consult_los_adjustment(
-        consult_los_data = consult_los_data,
-        patient_acuity = patient_acuity,
-        consult_group = consult_group
-      )
+      # For MVP, consult is assigned but does not add time.
+      return(0)
     }) %>%
     
+    # 7. Patient leaves ED treatment space
     release("core_ed_space", 1)
 }

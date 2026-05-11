@@ -11,7 +11,6 @@ source("3_model/distributions/sample_imaging_decision.R")
 source("3_model/distributions/sample_imaging_duration.R")
 source("3_model/build_patient_trajectory.R")
 source("3_model/distributions/sample_consult_decision.R")
-source("3_model/distributions/sample_consult_los_adjustment.R")
 source("4_analysis/analysis_result.R")
 
 current_quarter <- 2
@@ -34,7 +33,6 @@ patient_trajectory <- build_patient_trajectory(
   imaging_probability_data = imaging_probability_data,
   imaging_duration_data = imaging_duration_data,
   consult_probability_data = consult_probability_data,
-  consult_los_data = consult_los_data,
   current_quarter = current_quarter,
   env = env
 )
