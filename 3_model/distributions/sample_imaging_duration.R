@@ -24,3 +24,5 @@ sample_imaging_duration <- function(imaging_duration_data, modality) {
   
   return(max(1, imaging_duration))
 }
+
+

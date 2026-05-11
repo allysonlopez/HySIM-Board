@@ -2,14 +2,10 @@
 
 register_resources <- function(env) {
   
-  n_ed_beds <- 17
-  #n_providers <- 
-  #n_nurses <- 
-  #imaging_capacity <- 
+  n_core_ed_spaces <- 43
+  n_triage_rns <- 2
   
   env %>%
-    add_resource("ed_bed", capacity = n_ed_beds, queue_size = Inf) #%>%
-    #add_resource("provider", capacity = n_providers, queue_size = Inf) %>%
-    #add_resource("nurse", capacity = n_nurses, queue_size = Inf) %>%
-    #add_resource("imaging", capacity = imaging_capacity, queue_size = Inf)
+    add_resource("triage_rn", capacity = n_triage_rns, queue_size = Inf) %>%
+    add_resource("core_ed_space", capacity = n_core_ed_spaces, queue_size = Inf)
 }

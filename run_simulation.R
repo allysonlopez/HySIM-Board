@@ -10,7 +10,8 @@ source("3_model/distributions/sample_workup_duration.R")
 source("3_model/distributions/sample_imaging_decision.R")
 source("3_model/distributions/sample_imaging_duration.R")
 source("3_model/build_patient_trajectory.R")
-
+source("3_model/distributions/sample_consult_decision.R")
+source("3_model/distributions/sample_consult_los_adjustment.R")
 source("4_analysis/analysis_result.R")
 
 current_quarter <- 2
@@ -18,12 +19,22 @@ current_quarter <- 2
 env <- simmer("ED") %>%
   register_resources()
 
+arrival_times <- create_empirical_arrival_times(
+  interarrival_data = interarrival_data,
+  current_quarter = current_quarter,
+  sim_days = 1
+)
+
+arrival_distribution <- make_interarrival_function(arrival_times)
+
 patient_trajectory <- build_patient_trajectory(
   case_mix_data = case_mix_data,
   first_seen_data = first_seen_summary_data,
   workup_data = workup_summary_data,
   imaging_probability_data = imaging_probability_data,
   imaging_duration_data = imaging_duration_data,
+  consult_probability_data = consult_probability_data,
+  consult_los_data = consult_los_data,
   current_quarter = current_quarter,
   env = env
 )
@@ -32,13 +43,7 @@ env %>%
   add_generator(
     name_prefix = "patient",
     trajectory = patient_trajectory,
-    distribution = function() {
-      sample_interarrival(
-        data = interarrival_data,
-        current_time = now(env),
-        current_quarter = current_quarter
-      )
-    },
+    distribution = arrival_distribution,
     mon = 2
   ) %>%
   run(until = 24 * 60)

@@ -1,18 +1,25 @@
-# main patient journey
+# 3_model/build_patient_trajectory.R
+
 source("3_model/generators/sample_attributes.R")
 source("3_model/distributions/sample_first_seen_delay.R")
 source("3_model/distributions/sample_workup_duration.R")
 source("3_model/distributions/sample_imaging_decision.R")
 source("3_model/distributions/sample_imaging_duration.R")
+source("3_model/distributions/sample_consult_decision.R")
+source("3_model/distributions/sample_consult_los_adjustment.R")
 
 build_patient_trajectory <- function(case_mix_data,
                                      first_seen_data,
                                      workup_data,
                                      imaging_probability_data,
                                      imaging_duration_data,
+                                     consult_probability_data,
+                                     consult_los_data,
                                      current_quarter,
                                      env) {
+  
   trajectory("patient_path") %>%
+    
     set_attribute(
       keys = c(
         "acuity",
@@ -29,9 +36,8 @@ build_patient_trajectory <- function(case_mix_data,
         )
       }
     ) %>%
-    seize("ed_bed", 1) %>%
     
-    # missing provider here
+    seize("triage_rn", 1) %>%
     
     timeout(function() {
       patient_acuity <- get_attribute(env, "acuity")
@@ -42,7 +48,10 @@ build_patient_trajectory <- function(case_mix_data,
       )
     }) %>%
     
-    # release provider 
+    release("triage_rn", 1) %>%
+    
+    seize("core_ed_space", 1) %>%
+    
     timeout(function() {
       patient_complexity_bucket <- get_attribute(env, "complexity_bucket")
       
@@ -53,7 +62,6 @@ build_patient_trajectory <- function(case_mix_data,
     }) %>%
     
     timeout(function() {
-      
       patient_acuity <- get_attribute(env, "acuity")
       
       modality <- sample_imaging_decision(
@@ -61,12 +69,30 @@ build_patient_trajectory <- function(case_mix_data,
         patient_acuity = patient_acuity
       )
       
+      set_attribute(env, "imaging_modality", modality)
+      
       sample_imaging_duration(
         imaging_duration_data = imaging_duration_data,
         modality = modality
       )
-      
     }) %>%
     
-    release("ed_bed", 1)
+    timeout(function() {
+      patient_acuity <- get_attribute(env, "acuity")
+      
+      consult_group <- sample_consult_decision(
+        consult_probability_data = consult_probability_data,
+        patient_acuity = patient_acuity
+      )
+      
+      set_attribute(env, "consult_group", consult_group)
+      
+      sample_consult_los_adjustment(
+        consult_los_data = consult_los_data,
+        patient_acuity = patient_acuity,
+        consult_group = consult_group
+      )
+    }) %>%
+    
+    release("core_ed_space", 1)
 }
