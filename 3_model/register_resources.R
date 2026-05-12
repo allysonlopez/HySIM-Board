@@ -1,11 +1,10 @@
-# tells the simulation what resources are limited
+# 3_model/register_resources.R
+# Define capacity constraints for the simple MVP model.
 
 register_resources <- function(env) {
-  
-  n_core_ed_spaces <- 43
-  n_triage_rns <- 2
-  
   env %>%
-    add_resource("triage_rn", capacity = n_triage_rns, queue_size = Inf) %>%
-    add_resource("core_ed_space", capacity = n_core_ed_spaces, queue_size = Inf)
+    add_resource("core_ed_space", capacity = 43, queue_size = Inf) %>%
+    add_resource("vertical_flex_space", capacity = 41, queue_size = Inf) %>%
+    add_resource("rapid_treatment_space", capacity = 8, queue_size = Inf) %>%
+    add_resource("wr_space", capacity = 12, queue_size = Inf)
 }
