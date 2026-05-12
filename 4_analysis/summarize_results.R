@@ -27,6 +27,7 @@ summarize_resources <- function(resources) {
       max_queue = max(queue, na.rm = TRUE),
       max_server = max(server, na.rm = TRUE),
       avg_server = weighted.mean(server, w = duration, na.rm = TRUE),
+      utilization = avg_server / max(capacity, na.rm = TRUE),
       .groups = "drop"
     )
 }
@@ -36,6 +37,23 @@ summarize_attributes <- function(attributes, attribute_key) {
     filter(key == attribute_key) %>%
     count(value) %>%
     mutate(prop = n / sum(n))
+}
+
+calculate_admission_summary <- function(attributes) {
+  admitted <- summarize_attributes(attributes, "admitted") %>%
+    mutate(label = if_else(value == 1, "admitted", "discharged")) %>%
+    dplyr::select(label, n, prop)
+  
+  boarding <- attributes %>%
+    filter(key == "boarding_time") %>%
+    summarise(
+      n_boarded = n(),
+      mean_boarding_minute = mean(value, na.rm = TRUE),
+      median_boarding_minute = median(value, na.rm = TRUE),
+      p90_boarding_minute = quantile(value, 0.90, na.rm = TRUE)
+    )
+  
+  list(admission_mix = admitted, boarding_metrics = boarding)
 }
 
 calculate_observed_process_baseline <- function(first_seen_empirical_data, workup_empirical_data) {

@@ -18,6 +18,11 @@ set.seed(123)
 
 current_quarter <- 2
 
+# Modeling switches for presentation/testing.
+# first_seen_scale avoids double-counting because input first-seen delays already include some real crowding.
+first_seen_scale <- 0.35
+include_boarding <- TRUE
+
 warmup_days <- 1
 analysis_days <- 7
 
@@ -54,7 +59,9 @@ patient_trajectory <- build_patient_trajectory(
   workup_summary_data = workup_summary_data,
   imaging_probability_data = imaging_probability_data,
   imaging_duration_data = imaging_duration_data,
-  consult_probability_data = consult_probability_data
+  consult_probability_data = consult_probability_data,
+  first_seen_scale = first_seen_scale,
+  include_boarding = include_boarding
 )
 
 # 5. Run simulation
@@ -108,6 +115,8 @@ observed_process_baseline <- calculate_observed_process_baseline(
   workup_empirical_data
 )
 
+admission_summary <- calculate_admission_summary(attributes_analysis)
+
 
 # 9. Print outputs
 
@@ -122,6 +131,12 @@ print(acuity_summary)
 
 cat("\n--- Complexity Mix ---\n")
 print(complexity_summary)
+
+cat("\n--- Admission Mix ---\n")
+print(admission_summary$admission_mix)
+
+cat("\n--- Boarding Metrics for Admitted Patients ---\n")
+print(admission_summary$boarding_metrics)
 
 cat("\n--- Observed Baseline from Input Data ---\n")
 print(observed_process_baseline)
