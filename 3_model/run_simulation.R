@@ -14,9 +14,7 @@ source("4_analysis/summarize_results.R")
 
 set.seed(123)
 
-# -----------------------------------
 # 1. Simulation settings
-# -----------------------------------
 
 current_quarter <- 2
 
@@ -28,16 +26,13 @@ total_days <- warmup_days + analysis_days
 warmup_time <- warmup_days * 24 * 60
 analysis_end_time <- total_days * 24 * 60
 
-# -----------------------------------
 # 2. Build simulation environment
-# -----------------------------------
+
 
 env <- simmer("ED") %>%
   register_resources()
 
-# -----------------------------------
 # 3. Generate patient arrivals
-# -----------------------------------
 
 arrival_times <- create_arrival_times(
   interarrival_data = interarrival_data,
@@ -47,9 +42,7 @@ arrival_times <- create_arrival_times(
 
 arrival_distribution <- make_interarrival_function(arrival_times)
 
-# -----------------------------------
 # 4. Build patient trajectory
-# -----------------------------------
 
 patient_trajectory <- build_patient_trajectory(
   env = env,
@@ -64,9 +57,7 @@ patient_trajectory <- build_patient_trajectory(
   consult_probability_data = consult_probability_data
 )
 
-# -----------------------------------
 # 5. Run simulation
-# -----------------------------------
 
 env %>%
   add_generator(
@@ -77,9 +68,7 @@ env %>%
   ) %>%
   run(until = analysis_end_time)
 
-# -----------------------------------
 # 6. Collect monitor data
-# -----------------------------------
 
 arrivals <- get_mon_arrivals(env)
 
@@ -87,9 +76,7 @@ resources <- get_mon_resources(env)
 
 attributes <- get_mon_attributes(env)
 
-# -----------------------------------
 # 7. Remove warm-up period
-# -----------------------------------
 
 arrivals_analysis <- arrivals %>%
   filter(start_time >= warmup_time)
@@ -100,9 +87,7 @@ resources_analysis <- resources %>%
 attributes_analysis <- attributes %>%
   filter(time >= warmup_time)
 
-# -----------------------------------
 # 8. Calculate outputs
-# -----------------------------------
 
 los_metrics <- calculate_los_metrics(arrivals_analysis)
 
@@ -123,9 +108,8 @@ observed_process_baseline <- calculate_observed_process_baseline(
   workup_empirical_data
 )
 
-# -----------------------------------
+
 # 9. Print outputs
-# -----------------------------------
 
 cat("\n--- Simulation LOS Metrics ---\n")
 print(los_metrics)
