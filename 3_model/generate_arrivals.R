@@ -13,8 +13,11 @@ create_arrival_times <- function(interarrival_data, current_quarter, sim_days) {
       rows <- filter_time_block(interarrival_data, current_time, current_quarter)
       selected_row <- rows[sample.int(nrow(rows), 1), ]
       
-      arrival_rate <- as.numeric(selected_row$arrival_rate_per_hour[1])
-      if (is.na(arrival_rate) || arrival_rate < 0) arrival_rate <- 0
+      arrival_rate <- 60 / as.numeric(selected_row$mean_interarrival_min[1])
+      
+      if (is.na(arrival_rate) || arrival_rate < 0 || is.infinite(arrival_rate)) {
+        arrival_rate <- 0
+      }
       
       n_arrivals <- rpois(1, lambda = arrival_rate)
       
