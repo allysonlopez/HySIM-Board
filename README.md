@@ -9,3 +9,6 @@ Emergency department (ED) boarding is when patients who have been admitted to th
 This project will develop a discrete event simulation (DES) model to analyze emergency department operations and understand the factors that contribute to patient boarding. The simulation will model patient flow through the emergency department and hospital system, including arrivals, triage, diagnostics, treatment, admission decisions, and transfers to inpatient beds.
 
 By recreating the sequence of operational events in the hospital system, the simulation will allow us to study how queues, resource limitations, and patient volume influence boarding and emergency department crowding. The model will also allow us to test operational policies and evaluate potential strategies that could reduce boarding time and improve hospital efficiency.
+
+Project overview:
+This simulation models how patients move through the ED over time. It is meant to help understand delays, queues, boarding, and resource use.

@@ -1,6 +1,9 @@
 # 3_model/generate_arrivals.R
-# Creates patient arrival times, then converts them into interarrival times for simmer.
+# Purpose: Create the stream of patients entering the ED simulation.
 
+
+#   Generates a sorted list of patient arrival times, measured in minutes from
+#   the start of the simulation.
 create_arrival_times <- function(interarrival_data, current_quarter, sim_days) {
   arrival_times <- c()
   
@@ -10,9 +13,9 @@ create_arrival_times <- function(interarrival_data, current_quarter, sim_days) {
       rows <- filter_time_block(interarrival_data, current_time, current_quarter)
       selected_row <- rows[sample.int(nrow(rows), 1), ]
       
-      # Use a Poisson draw so hourly arrivals vary naturally around the empirical rate.
       arrival_rate <- as.numeric(selected_row$arrival_rate_per_hour[1])
       if (is.na(arrival_rate) || arrival_rate < 0) arrival_rate <- 0
+      
       n_arrivals <- rpois(1, lambda = arrival_rate)
       
       if (n_arrivals > 0) {
@@ -24,8 +27,12 @@ create_arrival_times <- function(interarrival_data, current_quarter, sim_days) {
   sort(arrival_times)
 }
 
+
+#   Converts absolute arrival times into a function that returns the time between
+#   consecutive arrivals.
 make_interarrival_function <- function(arrival_times) {
   if (length(arrival_times) == 0) stop("No arrival times generated.")
+  
   interarrival_times <- c(arrival_times[1], diff(arrival_times))
   i <- 0
   

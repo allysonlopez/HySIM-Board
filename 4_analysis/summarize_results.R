@@ -1,5 +1,9 @@
 # 4_analysis/summarize_results.R
-# Summaries for simulation output.
+
+#   Convert raw simmer outputs into readable summary tables.
+
+#   Calculates ED length-of-stay summaries for patients who finished the model.
+#
 
 calculate_los_metrics <- function(arrivals) {
   arrivals %>%
@@ -14,6 +18,9 @@ calculate_los_metrics <- function(arrivals) {
       p95_los_minute = quantile(los_minute, 0.95, na.rm = TRUE)
     )
 }
+
+
+#   Summarizes how each ED resource was used during the simulation.
 
 summarize_resources <- function(resources) {
   resources %>%
@@ -32,6 +39,10 @@ summarize_resources <- function(resources) {
     )
 }
 
+
+#   Counts the distribution of a simulated patient attribute, such as acuity,
+#   complexity_bucket, or route.
+
 summarize_attributes <- function(attributes, attribute_key) {
   attributes %>%
     filter(key == attribute_key) %>%
@@ -39,22 +50,9 @@ summarize_attributes <- function(attributes, attribute_key) {
     mutate(prop = n / sum(n))
 }
 
-calculate_admission_summary <- function(attributes) {
-  admitted <- summarize_attributes(attributes, "admitted") %>%
-    mutate(label = if_else(value == 1, "admitted", "discharged")) %>%
-    dplyr::select(label, n, prop)
-  
-  boarding <- attributes %>%
-    filter(key == "boarding_time") %>%
-    summarise(
-      n_boarded = n(),
-      mean_boarding_minute = mean(value, na.rm = TRUE),
-      median_boarding_minute = median(value, na.rm = TRUE),
-      p90_boarding_minute = quantile(value, 0.90, na.rm = TRUE)
-    )
-  
-  list(admission_mix = admitted, boarding_metrics = boarding)
-}
+
+#   Calculates a rough observed-process benchmark from the empirical input data:
+#   first-seen time plus generic workup time.
 
 calculate_observed_process_baseline <- function(first_seen_empirical_data, workup_empirical_data) {
   first_seen <- first_seen_empirical_data %>%

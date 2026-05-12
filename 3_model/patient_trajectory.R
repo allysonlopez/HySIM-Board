@@ -1,5 +1,23 @@
 # 3_model/patient_trajectory.R
-# Defines the path one patient follows through the ED.
+# Purpose:
+#   Define the path each simulated patient follows through the ED.
+
+
+
+# What it does:
+#   Builds the full simmer trajectory used by every patient in the simulation.
+#
+# Main steps:
+#   1) Assign patient acuity and complexity using case-mix probabilities.
+#   2) Use acuity and complexity to choose a route:
+#        route 1 = core ED space
+#        route 2 = vertical/flex space
+#        route 3 = rapid treatment space
+#   3) Patient seizes the assigned ED space. If the space is full, they wait.
+#   4) Patient experiences a first-seen delay.
+#   5) Patient experiences a generic workup duration.
+#   6) Patient may receive imaging, adding imaging duration if triggered.
+#   7) Patient releases the ED space and exits the model.
 
 build_patient_trajectory <- function(env,
                                      current_quarter,
@@ -10,10 +28,12 @@ build_patient_trajectory <- function(env,
                                      workup_summary_data,
                                      imaging_probability_data,
                                      imaging_duration_data,
-                                     consult_probability_data,
-                                     first_seen_scale = 0.35,
-                                     include_boarding = TRUE) {
+                                     first_seen_scale = 0.35) {
   
+  
+  #   Creates the care sequence for one ED resource group. The same clinical steps
+  #   are used for core ED, vertical/flex, and rapid treatment; the only thing
+  #   that changes is which resource the patient seizes.
   ed_care_path <- function(resource_name) {
     trajectory(paste0(resource_name, "_path")) %>%
       seize(resource_name, 1) %>%
@@ -39,42 +59,6 @@ build_patient_trajectory <- function(env,
           get_attribute(env, "acuity")
         )
       }) %>%
-      timeout(function() {
-        sample_consult_duration(
-          consult_probability_data,
-          get_attribute(env, "acuity")
-        )
-      }) %>%
-      set_attribute(
-        keys = "admitted",
-        values = function() {
-          sample_admission_flag(
-            get_attribute(env, "acuity"),
-            get_attribute(env, "complexity_bucket")
-          )
-        }
-      ) %>%
-      branch(
-        option = function() {
-          if (isTRUE(include_boarding) && get_attribute(env, "admitted") == 1) return(1)
-          return(2)
-        },
-        continue = c(TRUE, TRUE),
-        trajectory("boarding_path") %>%
-          seize("inpatient_bed", 1) %>%
-          set_attribute(
-            keys = "boarding_time",
-            values = function() {
-              sample_boarding_duration(
-                get_attribute(env, "acuity"),
-                get_attribute(env, "complexity_bucket")
-              )
-            }
-          ) %>%
-          timeout(function() get_attribute(env, "boarding_time")) %>%
-          release("inpatient_bed", 1),
-        trajectory("discharge_path")
-      ) %>%
       release(resource_name, 1)
   }
   
@@ -99,12 +83,12 @@ build_patient_trajectory <- function(env,
         acuity <- get_attribute(env, "acuity")
         complexity <- get_attribute(env, "complexity_bucket")
         
-        # More realistic MVP routing:
-        # - Very sick patients go to core ED.
-        # - Medium acuity/high complexity also goes to core.
-        # - Lower acuity/lower complexity can use rapid treatment.
-        # - Everyone else uses vertical/flex space.
-        # This avoids sending every high-complexity patient to core automatically.
+        # Routing logic for the MVP:
+        # - Acuity 1-2 patients are sent to core ED because they are higher acuity.
+        # - Acuity 3 patients with high complexity also go to core ED.
+        # - Critical-care complexity goes to core ED regardless of acuity.
+        # - Lower-acuity/lower-complexity patients go to rapid treatment.
+        # - Everyone else goes to vertical/flex space.
         if (acuity <= 2 || (acuity == 3 && complexity >= 5) || complexity == 6) {
           return(1)   # core ED
         } else if (acuity >= 4 && complexity <= 3) {
