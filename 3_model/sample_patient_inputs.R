@@ -108,6 +108,28 @@ sample_first_seen_delay <- function(first_seen_empirical_data,
   max(1, as.numeric(summary_rows$median_min[1]) * scale_factor)
 }
 
+sample_consult_duration <- function(consult_probability_data, acuity) {
+  rows <- consult_probability_data %>%
+    filter(as.character(triage_priority) == as.character(acuity))
+  
+  if (nrow(rows) == 0) {
+    rows <- consult_probability_data %>%
+      filter(triage_priority == "UNKNOWN")
+  }
+  
+  if (nrow(rows) == 0) return(0)
+  
+  prob <- as.numeric(rows$needs_consult_prob[1])
+  if (is.na(prob)) prob <- 0
+  
+  needs_consult <- rbinom(1, 1, prob)
+  
+  if (needs_consult == 1) {
+    return(240)   # 4 hours
+  } else {
+    return(0)
+  }
+}
 
 #   Samples the generic ED workup duration for one patient.
 #

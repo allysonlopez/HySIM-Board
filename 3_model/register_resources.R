@@ -3,7 +3,5 @@
 
 register_resources <- function(env) {
   env %>%
-    add_resource("core_ed_space", capacity = 43, queue_size = Inf) %>%
-    add_resource("vertical_flex_space", capacity = 41, queue_size = Inf) %>%
-    add_resource("rapid_treatment_space", capacity = 8, queue_size = Inf)
+    add_resource("ed_bed", capacity = 43, queue_size = Inf)
 }

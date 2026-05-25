@@ -27,3 +27,7 @@ workup_empirical_data <- read_csv_file("06_generic_workup_duration_empirical_dei
 # probability of imaging, modality mix, and imaging duration.
 imaging_probability_data <- read_csv_file("07_imaging_probability_and_modality_mix_by_acuity_historical_2018_2022.csv")
 imaging_duration_data <- read_csv_file("08_imaging_duration_distribution_by_modality_historical_2018_2022.csv")
+
+consult_probability_data <- read_csv_file(
+  "09_consult_probability_and_group_mix_by_acuity_historical_2018_2022.csv"
+)
