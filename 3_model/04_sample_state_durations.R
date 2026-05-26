@@ -130,3 +130,16 @@ sample_consult_group <- function(acuity_value) {
     )
   )
 }
+
+
+sim_multi_days <- purrr::map_dfr(1:7, function(day_id) {
+  
+  sim_day <- run_one_day_simulation_with_rooms(
+    quarter_current = 1,
+    dow_current = day_id,
+    core_capacity = 43
+  )
+  
+  sim_day %>%
+    mutate(day = day_id)
+})

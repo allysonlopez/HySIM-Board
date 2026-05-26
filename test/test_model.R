@@ -251,3 +251,23 @@ sim_day_rooms %>%
   summarise(
     percent_waited_for_room = mean(room_wait_duration > 0)
   )
+
+#testing overall model 
+state_long <- state_warm %>%
+  pivot_longer(
+    cols = c(waiting_first_seen, in_workup, in_imaging),
+    names_to = "state",
+    values_to = "count"
+  )
+
+core_capacity_rooms %>%
+  mutate(hour = time / 60) %>%
+  ggplot(aes(x = hour, y = occupied_core_rooms)) +
+  geom_line(linewidth = 1.2, color = "steelblue") +
+  geom_hline(yintercept = 43, linetype = "dashed") +
+  labs(
+    title = "Simulated Core ED Room Occupancy",
+    x = "Hour of Day",
+    y = "Occupied Core Rooms"
+  ) +
+  theme_minimal()
