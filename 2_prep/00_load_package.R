@@ -3,3 +3,6 @@
 library(tidyverse)
 library(simmer)
 library(ggplot2)
+library(scales)
+library(dplyr)
+library(stringr)
