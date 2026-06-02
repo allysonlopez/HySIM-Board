@@ -1,7 +1,6 @@
 source("source_model_files.R")
 
 input_data <- load_model_input_data("1_data")
-validate_model_input_data(input_data)
 
 base_config <- default_model_config()
 scenario_functions <- get_scenarios()

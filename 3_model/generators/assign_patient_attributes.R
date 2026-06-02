@@ -1,44 +1,69 @@
-sample_patient_attribute_value <- function(case_mix_table, attribute_name, current_time_min = 0, current_quarter = NULL) {
-  current_hour <- floor((current_time_min %% 1440) / 60)
-  current_day <- floor(current_time_min / 1440) %% 7 + 1
+is_unknown_attribute_value <- function(x) {
+  x <- stringr::str_to_upper(stringr::str_squish(as.character(x)))
+  is.na(x) | x %in% c("UNKNOWN", "UNK", "NA", "N/A", "")
+}
+
+sample_patient_attribute_value <- function(case_mix_table,
+                                           attribute_name,
+                                           current_time_min = 0,
+                                           current_quarter = NULL,
+                                           config = NULL,
+                                           default_value = NA_character_,
+                                           allow_unknown = TRUE) {
+  target_attribute_name <- attribute_name
   
-  matching_rows <- case_mix_table %>%
-    dplyr::filter(.data$attribute_name == attribute_name)
-  
-  if ("hour_of_day" %in% names(matching_rows)) {
-    matching_rows <- matching_rows %>%
-      dplyr::filter(as.integer(.data$hour_of_day) == current_hour)
-  }
-  
-  if ("day_of_week_num" %in% names(matching_rows)) {
-    matching_rows <- matching_rows %>%
-      dplyr::filter(as.integer(.data$day_of_week_num) == current_day)
-  }
-  
-  if (!is.null(current_quarter) && "quarter" %in% names(matching_rows)) {
-    quarter_filtered_rows <- matching_rows %>%
-      dplyr::filter(as.character(.data$quarter) == as.character(current_quarter))
+  if (!is.null(config)) {
+    candidate_rows <- filter_rows_for_simulation_time(
+      data = case_mix_table,
+      current_time_min = current_time_min,
+      config = config
+    )
+  } else {
+    candidate_rows <- case_mix_table
     
-    if (nrow(quarter_filtered_rows) > 0) {
-      matching_rows <- quarter_filtered_rows
+    if (!is.null(current_quarter) && "quarter" %in% names(candidate_rows)) {
+      candidate_rows <- candidate_rows %>%
+        dplyr::filter(.data$quarter == .env$current_quarter)
     }
   }
   
+  matching_rows <- candidate_rows %>%
+    dplyr::filter(.data$attribute_name == .env$target_attribute_name)
+  
   if (nrow(matching_rows) == 0) {
     matching_rows <- case_mix_table %>%
-      dplyr::filter(.data$attribute_name == attribute_name)
+      dplyr::filter(.data$attribute_name == .env$target_attribute_name)
+  }
+  
+  if (!allow_unknown) {
+    matching_rows <- matching_rows %>%
+      dplyr::filter(!is_unknown_attribute_value(.data$attribute_value))
   }
   
   if (nrow(matching_rows) == 0) {
-    return(NA_character_)
+    return(default_value)
   }
   
-  probabilities <- normalize_probabilities(matching_rows$probability)
+  matching_rows <- matching_rows %>%
+    dplyr::mutate(
+      probability_numeric = suppressWarnings(as.numeric(.data$probability)),
+      n_obs_numeric = suppressWarnings(as.numeric(.data$n_obs)),
+      row_weight = dplyr::case_when(
+        !is.na(.data$probability_numeric) & .data$probability_numeric > 0 ~ .data$probability_numeric,
+        !is.na(.data$n_obs_numeric) & .data$n_obs_numeric > 0 ~ .data$n_obs_numeric,
+        TRUE ~ 0
+      )
+    ) %>%
+    dplyr::filter(!is.na(.data$row_weight), .data$row_weight > 0)
+  
+  if (nrow(matching_rows) == 0) {
+    return(default_value)
+  }
   
   sample(
     x = as.character(matching_rows$attribute_value),
     size = 1,
-    prob = probabilities
+    prob = matching_rows$row_weight / sum(matching_rows$row_weight)
   )
 }
 
@@ -56,7 +81,7 @@ convert_triage_priority_to_code <- function(triage_priority) {
     stringr::str_detect(stringr::str_to_lower(triage_priority), "3") ~ 3L,
     stringr::str_detect(stringr::str_to_lower(triage_priority), "4") ~ 4L,
     stringr::str_detect(stringr::str_to_lower(triage_priority), "5") ~ 5L,
-    TRUE ~ 0L
+    TRUE ~ 3L
   )
 }
 
@@ -70,7 +95,7 @@ convert_complexity_bucket_to_code <- function(complexity_bucket) {
     complexity_bucket == "moderate" ~ 4L,
     complexity_bucket == "high" ~ 5L,
     complexity_bucket %in% c("critical_care", "critical care", "critical") ~ 6L,
-    TRUE ~ 0L
+    TRUE ~ 4L
   )
 }
 
@@ -87,13 +112,16 @@ convert_complexity_code_to_bucket <- function(complexity_code) {
 }
 
 convert_arrival_mode_to_code <- function(arrival_mode) {
-  arrival_mode <- stringr::str_to_lower(as.character(arrival_mode))
+  arrival_mode <- stringr::str_to_lower(stringr::str_squish(as.character(arrival_mode)))
   
   dplyr::case_when(
-    stringr::str_detect(arrival_mode, "walk") ~ 1L,
-    stringr::str_detect(arrival_mode, "ambulance|ems|als|bls") ~ 2L,
-    stringr::str_detect(arrival_mode, "transfer") ~ 3L,
-    TRUE ~ 0L
+    arrival_mode == "self_presented" ~ 1L,
+    arrival_mode == "ground_ambulance" ~ 2L,
+    arrival_mode == "police_custody" ~ 3L,
+    arrival_mode == "hospital_transport" ~ 4L,
+    arrival_mode == "air_transport" ~ 5L,
+    arrival_mode == "other_unknown" ~ 6L,
+    TRUE ~ 6L
   )
 }
 
@@ -109,50 +137,78 @@ convert_age_group_to_code <- function(age_group) {
   )
 }
 
-convert_behavioral_health_flag_to_code <- function(behavioral_health_flag) {
-  behavioral_health_flag <- stringr::str_to_lower(as.character(behavioral_health_flag))
+convert_behavioral_health_flag_to_code <- function(behavioral_health_value) {
+  value <- stringr::str_squish(as.character(behavioral_health_value))
+  
+  invalid_values <- unique(value[!is.na(value) & !value %in% c("0", "1")])
+  if (length(invalid_values) > 0) {
+    stop(
+      "Unexpected behavioral_health_flag label(s): ",
+      paste(invalid_values, collapse = ", "),
+      ". Expected only database labels: 0 or 1."
+    )
+  }
   
   dplyr::case_when(
-    behavioral_health_flag %in% c("1", "true", "yes", "y") ~ 1L,
-    behavioral_health_flag %in% c("0", "false", "no", "n") ~ 0L,
-    TRUE ~ 0L
+    value == "1" ~ 1L,
+    value == "0" ~ 0L,
+    is.na(value) ~ 0L
   )
 }
 
-assign_patient_attributes <- function(case_mix_table, current_time_min = 0, current_quarter = NULL, ...) {
+assign_patient_attributes <- function(case_mix_table,
+                                      current_time_min = 0,
+                                      current_quarter = NULL,
+                                      config = NULL,
+                                      ...) {
   triage_priority_raw <- sample_patient_attribute_value(
     case_mix_table = case_mix_table,
     attribute_name = "acuity",
     current_time_min = current_time_min,
-    current_quarter = current_quarter
+    current_quarter = current_quarter,
+    config = config,
+    default_value = "3",
+    allow_unknown = FALSE
   )
   
   complexity_bucket_raw <- sample_patient_attribute_value(
     case_mix_table = case_mix_table,
     attribute_name = "complexity_bucket",
     current_time_min = current_time_min,
-    current_quarter = current_quarter
+    current_quarter = current_quarter,
+    config = config,
+    default_value = "moderate",
+    allow_unknown = FALSE
   )
   
   arrival_mode_raw <- sample_patient_attribute_value(
     case_mix_table = case_mix_table,
     attribute_name = "arrival_mode",
     current_time_min = current_time_min,
-    current_quarter = current_quarter
+    current_quarter = current_quarter,
+    config = config,
+    default_value = "self_presented",
+    allow_unknown = TRUE
   )
-  
+
   age_group_raw <- sample_patient_attribute_value(
     case_mix_table = case_mix_table,
     attribute_name = "age_group",
     current_time_min = current_time_min,
-    current_quarter = current_quarter
+    current_quarter = current_quarter,
+    config = config,
+    default_value = "18-64",
+    allow_unknown = TRUE
   )
   
   behavioral_health_raw <- sample_patient_attribute_value(
     case_mix_table = case_mix_table,
     attribute_name = "behavioral_health_flag",
     current_time_min = current_time_min,
-    current_quarter = current_quarter
+    current_quarter = current_quarter,
+    config = config,
+    default_value = "0",
+    allow_unknown = TRUE
   )
   
   c(

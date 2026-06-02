@@ -1,6 +1,6 @@
 default_model_config <- function() {
   list(
-    current_quarter = 2,
+    current_quarter = 3,
     start_day_of_week_num = 1,
     start_hour_of_day = 8,
     warmup_days = 7,
@@ -24,9 +24,10 @@ default_model_config <- function() {
     
     default_imaging_acquisition_min = 30,
     default_imaging_interpretation_min = 60,
-    
     max_imaging_acquisition_min = 240,
     max_imaging_interpretation_min = 720,
+    default_total_imaging_min = 120,
+    max_total_imaging_min = 720,
     
     default_consult_los_adjustment_min = 120,
     fallback_weibull_shape = 1.5,

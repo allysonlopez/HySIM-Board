@@ -12,7 +12,30 @@ set_patient_attributes <- function(trj, input_data, env, config) {
         assign_patient_attributes(
           case_mix_table = input_data$case_mix_table,
           current_time_min = simmer::now(env),
+          current_quarter = config$current_quarter,
           config = config
+        )
+      }
+    ) %>%
+    simmer::set_attribute(
+      "debug_triage_for_area",
+      function() simmer::get_attribute(env, "triage_priority")
+    ) %>%
+    simmer::set_attribute(
+      "debug_complexity_for_area",
+      function() simmer::get_attribute(env, "complexity_code")
+    ) %>%
+    simmer::set_attribute(
+      "debug_arrival_mode_for_area",
+      function() simmer::get_attribute(env, "arrival_mode_code")
+    ) %>%
+    simmer::set_attribute(
+      "disposition_code",
+      function() {
+        choose_disposition_code(
+          triage_priority = simmer::get_attribute(env, "triage_priority"),
+          complexity_code = simmer::get_attribute(env, "complexity_code"),
+          behavioral_health_flag = simmer::get_attribute(env, "behavioral_health_flag")
         )
       }
     ) %>%
@@ -22,17 +45,9 @@ set_patient_attributes <- function(trj, input_data, env, config) {
         choose_care_area_code(
           triage_priority = simmer::get_attribute(env, "triage_priority"),
           complexity_code = simmer::get_attribute(env, "complexity_code"),
-          behavioral_health_flag = simmer::get_attribute(env, "behavioral_health_flag")
-        )
-      }
-    ) %>%
-    simmer::set_attribute(
-      "disposition_code",
-      function() {
-        choose_disposition_code(
-          triage_priority = simmer::get_attribute(env, "triage_priority"),
-          complexity_code = simmer::get_attribute(env, "complexity_code"),
-          behavioral_health_flag = simmer::get_attribute(env, "behavioral_health_flag")
+          behavioral_health_flag = simmer::get_attribute(env, "behavioral_health_flag"),
+          disposition_code = simmer::get_attribute(env, "disposition_code"),
+          arrival_mode_code = simmer::get_attribute(env, "arrival_mode_code")
         )
       }
     ) %>%
@@ -72,7 +87,7 @@ set_patient_durations <- function(trj, input_data, env, config) {
       "workup_duration_min",
       function() {
         sample_workup_time(
-          workup_summary = input_data$workup_summary,
+          workup_empirical = input_data$workup_empirical,
           complexity_code = simmer::get_attribute(env, "complexity_code"),
           config = config
         )
@@ -171,23 +186,64 @@ add_common_clinical_steps <- function(trj, env, config) {
     simmer::seize("provider", 1) %>%
     simmer::timeout(config$provider_evaluation_min) %>%
     simmer::release("provider", 1) %>%
-    simmer::timeout(function() simmer::get_attribute(env, "workup_duration_min")) %>%
-    add_imaging_step(env = env) %>%
-    add_consult_step(env = env)
+    simmer::timeout(function() simmer::get_attribute(env, "workup_duration_min"))
 }
 
-build_area_specific_path <- function(resource_name, env, config) {
+# ed core
+build_core_area_path <- function(env, config) {
+  simmer::trajectory("core_ed_space_path") %>%
+    simmer::seize("core_ed_space", 1) %>%
+    add_common_clinical_steps(env = env, config = config) %>%
+    add_boarding_step(env = env) %>%
+    simmer::release("core_ed_space", 1)
+}
+# flex / rta
+build_non_core_area_path <- function(resource_name, env, config) {
   simmer::trajectory(paste0(resource_name, "_path")) %>%
     simmer::seize(resource_name, 1) %>%
     add_common_clinical_steps(env = env, config = config) %>%
     simmer::release(resource_name, 1) %>%
-    add_boarding_step(env = env)
+    add_core_boarding_if_needed(env = env, config = config)
+}
+# only admit / obs to ed core
+add_core_boarding_if_needed <- function(trj, env, config) {
+  trj %>%
+    simmer::branch(
+      option = function() {
+        disposition_code <- simmer::get_attribute(env, "disposition_code")
+        
+        if (disposition_code %in% c(2, 3)) { # 2 = observation, 3 = admit
+          return(1)
+        }
+        return(2)
+      },
+      continue = c(TRUE, TRUE),
+      
+      trajectory("needs_core_boarding") %>%
+        simmer::seize("core_ed_space", 1) %>%
+        add_boarding_step(env = env) %>%
+        simmer::release("core_ed_space", 1),
+      
+      trajectory("no_core_boarding") %>%
+        simmer::timeout(0)
+    )
 }
 
+
 build_patient_trajectory <- function(input_data, env, config) {
-  core_path <- build_area_specific_path("core_ed_space", env, config)
-  vertical_path <- build_area_specific_path("vertical_flex_space", env, config)
-  rta_path <- build_area_specific_path("rta_space", env, config)
+  core_path <- build_core_area_path(env = env, config = config)
+  
+  vertical_path <- build_non_core_area_path(
+    resource_name = "vertical_flex_space",
+    env = env,
+    config = config
+  )
+  
+  rta_path <- build_non_core_area_path(
+    resource_name = "rta_space",
+    env = env,
+    config = config
+  )
   
   simmer::trajectory("patient_path") %>%
     set_patient_attributes(input_data = input_data, env = env, config = config) %>%
