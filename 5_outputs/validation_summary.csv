@@ -1,5 +1,5 @@
 metric,unit,historical,simulated,percent_difference,absolute_error,absolute_percent_error
-Patients per Day (patients/day),patients/day,181.97,165.38,-9.1,16.590000000000003,9.116887399021818
+Patients per Day (patients/day),patients/day,181.97,183.86,1,1.8900000000000148,1.0386327416607215
 Mean First Provider Wait (min),minutes,195.19,207.84,6.5,12.650000000000006,6.48086479840156
 Mean Workup Duration (min),minutes,469.37,485.16,3.4,15.79000000000002,3.3640837718644185
 Mean Imaging Duration (min),minutes,229.24,195.5,-14.7,33.74000000000001,14.718199267143609
