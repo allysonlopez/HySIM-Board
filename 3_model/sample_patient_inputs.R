@@ -1,16 +1,6 @@
 # 3_model/sample_patient_inputs.R
 
-#   Store all patient-level sampling functions for the cleaned model.
-#
-#   After a patient arrives, the simulation needs to decide:
-#     1) how sick/urgent the patient is: acuity
-#     2) how complicated the patient is: complexity bucket
-#     3) how long until the patient is first seen
-#     4) how long the generic ED workup takes
-#     5) whether imaging happens and, if yes, how long it takes
-
-
-#   Converts an acuity value from the input data into a numeric value from 1 to 5.
+# convert acuity to a number
 encode_acuity <- function(x) {
   x <- as.character(x)
   if (x %in% c("1", "2", "3", "4", "5")) return(as.numeric(x))
@@ -18,7 +8,7 @@ encode_acuity <- function(x) {
 }
 
 
-#   Converts text complexity categories into ordered numeric values.
+# convert complexity to a number
 encode_complexity <- function(x) {
   x <- as.character(x)
   dplyr::case_when(
@@ -33,9 +23,7 @@ encode_complexity <- function(x) {
 }
 
 
-#   Converts numeric complexity values back into the text labels used in the
-#   workup-duration input tables.
-
+# convert complexity back to text
 decode_complexity <- function(x) {
   dplyr::case_when(
     x == 1 ~ "minimal",
@@ -49,9 +37,7 @@ decode_complexity <- function(x) {
 }
 
 
-#   Samples one patient attribute, such as acuity or complexity, from the case-mix
-#   probability table for the current time block.
-
+# sample one patient attribute from case mix data
 sample_attribute <- function(case_mix_data, current_time, current_quarter, attribute_name_target) {
   rows <- filter_time_block(case_mix_data, current_time, current_quarter) %>%
     filter(attribute_name == attribute_name_target)
@@ -64,10 +50,7 @@ sample_attribute <- function(case_mix_data, current_time, current_quarter, attri
 }
 
 
-#   Assigns the two patient attributes currently used by the MVP model:
-#     1) acuity
-#     2) complexity_bucket
-
+# assign main patient attributes used by model
 assign_patient_attributes <- function(case_mix_data, current_time, current_quarter) {
   acuity_raw <- sample_attribute(case_mix_data, current_time, current_quarter, "acuity")
   complexity_raw <- sample_attribute(case_mix_data, current_time, current_quarter, "complexity_bucket")
@@ -85,8 +68,7 @@ assign_patient_attributes <- function(case_mix_data, current_time, current_quart
 }
 
 
-#   Samples the time from ED arrival to first practitioner contact for one patient.
-
+# sample time from arrival to first provider
 sample_first_seen_delay <- function(first_seen_empirical_data,
                                     first_seen_summary_data,
                                     acuity,
@@ -108,6 +90,7 @@ sample_first_seen_delay <- function(first_seen_empirical_data,
   max(1, as.numeric(summary_rows$median_min[1]) * scale_factor)
 }
 
+# sample consult time
 sample_consult_duration <- function(consult_probability_data, acuity) {
   rows <- consult_probability_data %>%
     filter(as.character(triage_priority) == as.character(acuity))
@@ -131,12 +114,7 @@ sample_consult_duration <- function(consult_probability_data, acuity) {
   }
 }
 
-#   Samples the generic ED workup duration for one patient.
-#
-#   Workup duration depends on complexity. A minimal-complexity patient should
-#   generally have a shorter workup than a high-complexity or critical-care
-#   patient.
-
+# sample ED workup time
 sample_workup_duration <- function(workup_empirical_data, workup_summary_data, complexity_bucket) {
   complexity_text <- decode_complexity(complexity_bucket)
   
@@ -158,9 +136,7 @@ sample_workup_duration <- function(workup_empirical_data, workup_summary_data, c
 }
 
 
-#   Samples a positive duration using a lognormal distribution whose median and
-#   90th percentile approximately match the values from an input summary table.
-
+# sample duration
 sample_between_median_and_p90 <- function(median_value, p90_value) {
   median_value <- as.numeric(median_value)
   p90_value <- as.numeric(p90_value)
@@ -173,16 +149,7 @@ sample_between_median_and_p90 <- function(median_value, p90_value) {
 }
 
 
-#   Simulates the imaging subprocess for one patient.
-#
-# Modeling logic:
-#   1) Use the patient's acuity to find the probability that imaging is needed.
-#   2) Randomly decide whether imaging happens.
-#   3) If imaging happens, sample the modality: XR, CT, MRI, or US.
-#   4) Use the modality-specific duration table to sample total imaging time.
-#   5) If imaging does not happen, return 0 minutes.
-#
-
+# sample imaging time
 sample_imaging_duration <- function(imaging_probability_data, imaging_duration_data, acuity) {
   rows <- imaging_probability_data %>%
     filter(as.character(triage_priority) == as.character(acuity))

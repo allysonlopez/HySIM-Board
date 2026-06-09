@@ -1,7 +1,11 @@
 # 3_model/register_resources.R
-#   Define the ED spaces that patients can occupy during the simulation.
 
+# add ED beds as a resource patients must use, fixed 43 bed amount
 register_resources <- function(env) {
-  env %>%
-    add_resource("ed_bed", capacity = 43, queue_size = Inf)
+    env %>%
+    add_resource(
+      "ed_bed",
+      capacity = 43,
+      queue_size = Inf
+    )
 }

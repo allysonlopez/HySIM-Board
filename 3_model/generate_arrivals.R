@@ -1,28 +1,29 @@
 # 3_model/generate_arrivals.R
-# Purpose: Create the stream of patients entering the ED simulation.
 
 
-#   Generates a sorted list of patient arrival times, measured in minutes from
-#   the start of the simulation.
+# create patient arrival times for each hour of the sim
 create_arrival_times <- function(interarrival_data, current_quarter, sim_days) {
   arrival_times <- c()
   
-  for (day_index in 0:(sim_days - 1)) {
+  for (day in 0:(sim_days - 1)) {
     for (hour in 0:23) {
-      current_time <- day_index * 1440 + hour * 60
+      
+      # get matching arrival data for current sim hour
+      current_time <- day * 1440 + hour * 60
       rows <- filter_time_block(interarrival_data, current_time, current_quarter)
-      selected_row <- rows[sample.int(nrow(rows), 1), ]
+      row <- rows[sample.int(nrow(rows), 1), ]
       
-      arrival_rate <- 60 / as.numeric(selected_row$mean_interarrival_min[1])
+      # convert average minutes between arrivals into arrivals per hour
+      mean_time <- as.numeric(row$mean_interarrival_min[1])
+      arrival_rate <- ifelse(is.na(mean_time) || mean_time <= 0, 0, 60 / mean_time)
       
-      if (is.na(arrival_rate) || arrival_rate < 0 || is.infinite(arrival_rate)) {
-        arrival_rate <- 0
-      }
+      # generate the number of arrivals for current sim hour
+      n_arrivals <- rpois(1, arrival_rate)
       
-      n_arrivals <- rpois(1, lambda = arrival_rate)
-      
+      # randomly spread arrivals across the hour
       if (n_arrivals > 0) {
-        arrival_times <- c(arrival_times, current_time + runif(n_arrivals, 0, 60))
+        new_times <- current_time + runif(n_arrivals, 0, 60)
+        arrival_times <- c(arrival_times, new_times)
       }
     }
   }
@@ -31,17 +32,26 @@ create_arrival_times <- function(interarrival_data, current_quarter, sim_days) {
 }
 
 
-#   Converts absolute arrival times into a function that returns the time between
-#   consecutive arrivals.
+# gives the time until the next arrival
 make_interarrival_function <- function(arrival_times) {
-  if (length(arrival_times) == 0) stop("No arrival times generated.")
   
+  # stop if no arrivals were generated
+  if (length(arrival_times) == 0) {
+    stop("No arrival times generated.")
+  }
+  
+  # calculate time between arrivals
   interarrival_times <- c(arrival_times[1], diff(arrival_times))
-  i <- 0
+  index <- 0
   
   function() {
-    i <<- i + 1
-    if (i > length(interarrival_times)) return(-1)
-    max(0.001, interarrival_times[i])
+    index <<- index + 1
+    
+    # break when all arrivals have been used
+    if (index > length(interarrival_times)) {
+      return(-1)
+    }
+    
+    max(0.001, interarrival_times[index])
   }
 }
