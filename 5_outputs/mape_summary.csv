@@ -1,0 +1,7 @@
+metric,MAPE
+Patients per Day (patients/day),1
+Mean First Provider Wait (min),6.5
+Mean Workup Duration (min),3.4
+Mean Imaging Duration (min),14.7
+Imaging Utilization (%),5.2
+Consult Utilization (%),8.7

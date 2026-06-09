@@ -1,5 +1,0 @@
-﻿"imaging_type","n_obs","acquisition_mean_min","acquisition_median_min","acquisition_p90_min","interpretation_mean_min","interpretation_median_min","interpretation_p90_min","total_imaging_mean_min","total_imaging_median_min","total_imaging_p90_min"
-"XR","264837","8.67","0.00","11.00","165.33","80.00","425.00","169.10","84.00","427.00"
-"CT","133899","22.66","15.00","44.00","57.21","24.00","113.00","77.26","44.00","141.00"
-"MRI","18168","87.65","51.00","108.00","107.08","42.00","215.00","168.07","103.00","292.70"
-"US","52046","139.79","54.00","111.00","74.52","28.00","177.80","247.86","90.00","291.00"
